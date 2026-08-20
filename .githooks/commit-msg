@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Git Hook: commit-msg
+# Enforces Conventional Commits format before commit is recorded.
+# ==============================================================================
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(head -n 1 "$COMMIT_MSG_FILE")
+
+# Allow merge commits and rebase messages
+if [[ "$COMMIT_MSG" =~ ^Merge || "$COMMIT_MSG" =~ ^Revert ]]; then
+  exit 0
+fi
+
+# Conventional Commits regex
+REGEX="^(feat|fix|docs|refactor|test|chore|perf|ci|style)(\([a-zA-Z0-9_-]+\))?!?: .+"
+
+if [[ ! "$COMMIT_MSG" =~ $REGEX ]]; then
+  echo ""
+  echo -e "\033[0;31m[GUARDRAIL ERROR]\033[0m Invalid commit message format."
+  echo -e "Your message: '\033[1m$COMMIT_MSG\033[0m'"
+  echo ""
+  echo "Expected Conventional Commits format:"
+  echo "  <type>(<optional scope>): <description>"
+  echo ""
+  echo "Allowed types: feat, fix, docs, refactor, test, chore, perf, ci, style"
+  echo "Examples:"
+  echo "  feat: add article extraction"
+  echo "  fix: handle empty response payload"
+  echo "  docs: update local setup guide"
+  echo ""
+  exit 1
+fi

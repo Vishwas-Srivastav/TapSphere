@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Git Hook: pre-commit
+# Checks staged files for secrets, .env files, and prohibited emoji icons.
+# ==============================================================================
+
+set -euo pipefail
+
+# 1. Block staged .env files (except .env.example)
+STAGED_ENV=$(git diff --cached --name-only | grep -E '^\.env(\..+)?$' | grep -v '\.env\.example$' || echo '')
+if [[ -n "$STAGED_ENV" ]]; then
+  echo ""
+  echo -e "\033[0;31m[GUARDRAIL ERROR]\033[0m Attempting to commit sensitive environment file: $STAGED_ENV"
+  echo "Real .env files must remain local and ignored."
+  echo "Unstage this file with: git reset HEAD $STAGED_ENV"
+  echo ""
+  exit 1
+fi
+
+# 2. Block private keys and certificates
+STAGED_KEYS=$(git diff --cached --name-only | grep -E '\.(pem|key|cert|crt)$' || echo '')
+if [[ -n "$STAGED_KEYS" ]]; then
+  echo ""
+  echo -e "\033[0;31m[GUARDRAIL ERROR]\033[0m Attempting to commit private key/certificate: $STAGED_KEYS"
+  echo "Unstage with: git reset HEAD $STAGED_KEYS"
+  echo ""
+  exit 1
+fi
+
+# 3. Check for prohibited emoji icons in staged frontend files
+STAGED_UI_FILES=$(git diff --cached --name-only | grep -E '\.(js|jsx|ts|tsx|vue|svelte|html)$' || echo '')
+if [[ -n "$STAGED_UI_FILES" ]]; then
+  EMOJI_REGEX="[🚀⚙❌⭐✅🔔🗑🔥💡✨🎉]"
+  for file in $STAGED_UI_FILES; do
+    if [[ -f "$file" ]] && grep -n -E "$EMOJI_REGEX" "$file" >/dev/null 2>&1; then
+      echo ""
+      echo -e "\033[0;31m[GUARDRAIL ERROR]\033[0m Prohibited emoji icon detected in staged file: $file"
+      echo "Rule: Use SVG icons or an icon component; do NOT use emojis as UI icons."
+      echo ""
+      exit 1
+    fi
+  done
+fi
+
+exit 0
