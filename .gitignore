@@ -1,0 +1,24 @@
+# Environment and Secret Files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+
+# Build and Distribution Outputs
+dist/
+build/
+out/
+bin/
+*.exe
+*.dylib
+
+# Temporary Files
+*.tmp
+*.temp
+.tmp/
+scratch/
+.build/
+.DS_Store
