@@ -37,6 +37,7 @@ public final class AppState: ObservableObject {
     public let actionManager: ActionManager
 
     private var captureTask: Task<Void, Never>?
+    private var isActionLockoutActive: Bool = false
 
     public init() {
         self.captureService = AudioCaptureService()
@@ -59,6 +60,10 @@ public final class AppState: ObservableObject {
         if let firstProfile = availableProfiles.first {
             self.activeProfile = firstProfile
             self.classifier.loadProfile(firstProfile)
+        } else {
+            let defaultProfile = CalibrationProfile.defaultBaselineProfile()
+            self.activeProfile = defaultProfile
+            self.classifier.loadProfile(defaultProfile)
         }
     }
 
@@ -66,15 +71,17 @@ public final class AppState: ObservableObject {
         guard !isCapturing else { return }
         isCapturing = true
 
+        print("[TapSphere] Starting real-time audio capture stream...")
         captureTask = Task {
             do {
                 try await captureService.start()
+                print("[TapSphere] Audio capture active. Listening for desk surface impacts...")
                 for await frame in captureService.audioStream {
                     guard !Task.isCancelled else { break }
                     await self.processIncomingFrame(frame)
                 }
             } catch {
-                print("Capture error: \(error.localizedDescription)")
+                print("[TapSphere] Capture error: \(error.localizedDescription)")
                 self.isCapturing = false
             }
         }
@@ -85,6 +92,7 @@ public final class AppState: ObservableObject {
         captureTask?.cancel()
         captureTask = nil
         isCapturing = false
+        print("[TapSphere] Audio capture stopped.")
     }
 
     private func processIncomingFrame(_ frame: AudioFrame) async {
@@ -99,22 +107,32 @@ public final class AppState: ObservableObject {
         let features = featureExtractor.extractFeatures(from: frame)
 
         // 1. Physical Desk Tap Detection & Action Triggering
-        let isTap = tapDetector.detectTap(in: frame, features: features)
-        if isTap {
-            let rawPred = classifier.classify(featureVector: features)
-            let quad = rawPred.direction.laptopQuadrant
-            self.currentQuadrant = quad
-            if quad != .unknown {
-                if let event = actionManager.dispatchTap(quadrant: quad) {
-                    self.lastTapEvent = event
+        if !isActionLockoutActive {
+            let isTap = tapDetector.detectTap(in: frame, features: features)
+            if isTap {
+                let rawPred = classifier.classify(featureVector: features)
+                let quad = rawPred.direction.laptopQuadrant
+                if quad != .unknown {
+                    if let event = actionManager.dispatchTap(quadrant: quad) {
+                        self.currentQuadrant = quad
+                        self.lastTapEvent = event
+                        print("[TapSphere] 💥 Desk Tap Detected! Sector: \(rawPred.direction.rawValue) -> Quadrant: \(quad.rawValue)")
+                        print("[TapSphere] ⚡ Action Executed: \(event.actionExecuted) for \(quad.rawValue)")
+
+                        // Lockout for 1.5 seconds to suppress audio feedback and window launch echos
+                        self.isActionLockoutActive = true
+                        Task {
+                            try? await Task.sleep(nanoseconds: 1_500_000_000)
+                            self.isActionLockoutActive = false
+                        }
+                    }
                 }
             }
         }
 
-        // 2. Continuous Voice Activity & Localization Processing
+        // 2. Track Voice Activity
         let speechPresent = vad.processFrame(frame)
         self.isSpeechDetected = speechPresent
-
         if speechPresent {
             let rawPred = classifier.classify(featureVector: features)
             let smoothedPred = smoother.smooth(prediction: rawPred)

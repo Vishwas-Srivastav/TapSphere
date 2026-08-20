@@ -47,4 +47,36 @@ public struct CalibrationProfile: Codable, Sendable, Identifiable {
         let positive = zoneSamples.values.reduce(0) { $0 + $1.count }
         return positive + negativeSamples.count
     }
+
+    /// Generates a default baseline calibration profile with synthetic spatial centroids.
+    public static func defaultBaselineProfile() -> CalibrationProfile {
+        let sampleDate = Date()
+        
+        func makeSample(rms: Float, peak: Float, zcr: Float, centroid: Float, rolloff: Float, leftRatio: Float, rightRatio: Float) -> FeatureVector {
+            FeatureVector(
+                timestamp: sampleDate,
+                rms: rms,
+                peak: peak,
+                zeroCrossingRate: zcr,
+                spectralCentroid: centroid,
+                spectralRolloff: rolloff,
+                bandEnergies: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+                mfccs: [Float](repeating: 0.1, count: 12),
+                channelEnergyRatios: [leftRatio, rightRatio],
+                pairwiseCorrelations: [0.85]
+            )
+        }
+
+        let samples: [Direction: [FeatureVector]] = [
+            .frontLeft: [makeSample(rms: 0.05, peak: 0.30, zcr: 0.08, centroid: 2500.0, rolloff: 4500.0, leftRatio: 0.65, rightRatio: 0.35)],
+            .frontRight: [makeSample(rms: 0.05, peak: 0.30, zcr: 0.15, centroid: 2600.0, rolloff: 4600.0, leftRatio: 0.35, rightRatio: 0.65)],
+            .rearLeft: [makeSample(rms: 0.08, peak: 0.45, zcr: 0.10, centroid: 4200.0, rolloff: 7000.0, leftRatio: 0.65, rightRatio: 0.35)],
+            .rearRight: [makeSample(rms: 0.08, peak: 0.45, zcr: 0.18, centroid: 4400.0, rolloff: 7200.0, leftRatio: 0.35, rightRatio: 0.65)]
+        ]
+
+        return CalibrationProfile(
+            name: "Default Factory Baseline Profile",
+            zoneSamples: samples
+        )
+    }
 }

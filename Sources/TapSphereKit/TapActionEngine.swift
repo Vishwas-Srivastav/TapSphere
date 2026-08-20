@@ -7,16 +7,18 @@ import Combine
 public final class TapActionEngine: ObservableObject {
     @Published public var isEnabled: Bool = true
     @Published public var playSoundFeedback: Bool = true
-    @Published public var sensitivityThreshold: Float = 5.5
+    @Published public var sensitivityThreshold: Float = 4.0
     @Published public var activeQuadrant: LaptopQuadrant = .unknown
     @Published public var lastTriggeredRecord: TapEventRecord?
 
     public let appState: AppState
     private var cancellables = Set<AnyCancellable>()
+    private var resetQuadrantTask: Task<Void, Never>?
 
     public init() {
         self.appState = AppState()
         setupListeners()
+        start()
     }
 
     private func setupListeners() {
@@ -30,25 +32,42 @@ public final class TapActionEngine: ObservableObject {
 
         appState.$currentQuadrant
             .sink { [weak self] quad in
-                self?.activeQuadrant = quad
+                guard let self = self else { return }
+                self.activeQuadrant = quad
+                self.resetQuadrantTask?.cancel()
+                if quad != .unknown {
+                    self.resetQuadrantTask = Task {
+                        try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        if !Task.isCancelled {
+                            self.activeQuadrant = .unknown
+                        }
+                    }
+                }
+            }
+            .store(in: &cancellables)
+
+        $sensitivityThreshold
+            .sink { [weak self] val in
+                self?.appState.tapDetector.config.minPeakToRMSThreshold = val
             }
             .store(in: &cancellables)
     }
 
     public func start() {
+        isEnabled = true
         appState.startCapture()
     }
 
     public func stop() {
+        isEnabled = false
         appState.stopCapture()
     }
 
     public func toggleEnabled() {
-        isEnabled.toggle()
         if isEnabled {
-            start()
-        } else {
             stop()
+        } else {
+            start()
         }
     }
 
@@ -56,8 +75,10 @@ public final class TapActionEngine: ObservableObject {
         self.lastTriggeredRecord = record
 
         if playSoundFeedback {
-            if let sound = NSSound(named: "Tink") ?? NSSound(named: "Pop") {
-                sound.play()
+            Task.detached(priority: .high) {
+                if let sound = NSSound(named: "Tink") ?? NSSound(named: "Pop") {
+                    sound.play()
+                }
             }
         }
     }

@@ -3,13 +3,16 @@ import SwiftUI
 /// Preferences & Settings view for TapSphere.
 public struct PreferencesView: View {
     @ObservedObject var engine: TapActionEngine
+    @ObservedObject var actionManager: ActionManager
+
     @State private var actionLeftFront: TriggerAction = .toggleMute
-    @State private var actionLeftRear: TriggerAction = .none
+    @State private var actionLeftRear: TriggerAction = .launchApp(name: "Calculator")
     @State private var actionRightFront: TriggerAction = .takeScreenshot
     @State private var actionRightRear: TriggerAction = .launchApp(name: "Calculator")
 
     public init(engine: TapActionEngine) {
         self.engine = engine
+        self.actionManager = engine.appState.actionManager
     }
 
     public var body: some View {
@@ -85,7 +88,7 @@ public struct PreferencesView: View {
                     Text("Recent Tap Triggers")
                         .font(.headline)
 
-                    if engine.appState.actionManager.recentTapEvents.isEmpty {
+                    if actionManager.recentTapEvents.isEmpty {
                         Text("No desk taps recorded yet. Tap the desk near your MacBook surface to trigger.")
                             .font(.callout)
                             .foregroundColor(.secondary)
@@ -95,10 +98,10 @@ public struct PreferencesView: View {
                             .cornerRadius(8)
                     } else {
                         VStack(spacing: 8) {
-                            ForEach(engine.appState.actionManager.recentTapEvents) { event in
+                            ForEach(actionManager.recentTapEvents) { event in
                                 HStack {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
+                                    Image(systemName: event.isSuccess ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(event.isSuccess ? .green : .red)
 
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("\(event.quadrant.description)")
@@ -163,11 +166,11 @@ public struct PreferencesView: View {
             }
             .pickerStyle(.menu)
             .onChange(of: binding.wrappedValue) { _, newValue in
-                engine.appState.actionManager.setAction(newValue, for: quadrant)
+                actionManager.setAction(newValue, for: quadrant)
             }
 
             Button(action: {
-                engine.appState.actionManager.dispatchTap(quadrant: quadrant)
+                actionManager.dispatchTap(quadrant: quadrant)
             }) {
                 HStack {
                     Image(systemName: "play.fill")
@@ -187,9 +190,9 @@ public struct PreferencesView: View {
     }
 
     private func syncState() {
-        actionLeftFront = engine.appState.actionManager.getAction(for: .leftFront)
-        actionLeftRear = engine.appState.actionManager.getAction(for: .leftRear)
-        actionRightFront = engine.appState.actionManager.getAction(for: .rightFront)
-        actionRightRear = engine.appState.actionManager.getAction(for: .rightRear)
+        actionLeftFront = actionManager.getAction(for: .leftFront)
+        actionLeftRear = actionManager.getAction(for: .leftRear)
+        actionRightFront = actionManager.getAction(for: .rightFront)
+        actionRightRear = actionManager.getAction(for: .rightRear)
     }
 }
