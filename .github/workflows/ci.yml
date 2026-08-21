@@ -67,6 +67,7 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LOG_OPTS: "--no-merges ${{ github.event.pull_request.base.sha || 'origin/development' }}..${{ github.event.pull_request.head.sha || 'HEAD' }}"
         continue-on-error: false
 
   # ============================================================================

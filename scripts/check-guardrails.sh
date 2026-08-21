@@ -8,7 +8,10 @@ echo "====================================================="
 echo ""
 
 # 1. Branch Naming Guardrail
-BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD | tail -n1)
+BRANCH_NAME="${GITHUB_HEAD_REF:-$(git rev-parse --abbrev-ref HEAD | tail -n1)}"
+if [[ "$BRANCH_NAME" == "HEAD" ]]; then
+    BRANCH_NAME=$(git name-rev --name-only HEAD 2>/dev/null | sed 's#^remotes/origin/##; s#^origin/##' || echo "HEAD")
+fi
 BRANCH_REGEX="^((feature|bugfix|chore)/)?[a-zA-Z0-9]+-[0-9]+$"
 
 echo "[GUARDRAIL] Validating Branch Naming Guardrail..."
