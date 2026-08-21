@@ -1,46 +1,70 @@
-# <PROJECT_NAME>
+# TapSphere
 
-> <PROJECT_DESCRIPTION>
-
----
-
-## Getting Started
-
-### 1. Local Configuration
-```bash
-cp .env.example .env
-```
-
-### 2. Initialize Engineering Guardrails
-```bash
-./scripts/setup-guardrails.sh
-```
-
-### 3. Install Dependencies
-```bash
-# <INSTALL_COMMAND> (e.g. npm install / pip install -r requirements.txt / go mod download)
-```
-
-### 4. Run Development Server
-```bash
-# <START_COMMAND> (e.g. npm run dev / python main.py / go run main.go)
-```
+> Native macOS background menu bar application converting physical desk taps around your Apple Silicon MacBook into instant productivity shortcuts.
 
 ---
 
-## Development Workflow
+## Overview
 
-- **Default Branch:** `development` (All Pull Requests must target `development`).
-- **Production Sync:** Merging into `development` automatically syncs changes to `main`.
-- **Branch Naming:** `<PROJECT_INITIALS>-<NUMBER>` (e.g., `WSAI-01`, `UC-01`, `ML-01`).
-- **Commit Format:** [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`).
+**TapSphere** is an ambient macOS productivity utility built on top of `SonicFieldKit`. By analyzing real-time acoustic transients across your MacBook's built-in microphone array, TapSphere detects physical desk taps across **4 surface quadrants**:
+
+```
+                      Display Side (Hinge)
+           ┌────────────────────────────────────────┐
+  Left     │               [ MACBOOK ]              │    Right
+  Rear     │                                        │    Rear
+           ├────────────────────────────────────────┤
+  Left     │                [ Trackpad ]            │    Right
+  Front    │                                        │    Front
+           └────────────────────────────────────────┘
+                      Trackpad Side (User)
+```
+
+### Configurable Tap Shortcuts
+
+- **Right Front Tap**: Instant Screenshot (saved to Desktop).
+- **Left Front Tap**: Toggle Microphone Input Mute.
+- **Right Rear Tap**: Quick App Launcher (Terminal, Calculator, Slack, Notes).
+- **Left Rear Tap**: Custom Zsh Script / System Action Execution.
 
 ---
 
-## Documentation & Standards
+## Architecture
 
-- **Contributor Guide:** [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Engineering Guardrails:** [docs/GUARDRAILS.md](docs/GUARDRAILS.md)
-- **UI & Icon Standards:** [docs/UI_GUIDELINES.md](docs/UI_GUIDELINES.md)
-- **Security Policy:** [SECURITY.md](SECURITY.md)
-- **Template Reference:** [docs/TEMPLATE_GUIDE.md](docs/TEMPLATE_GUIDE.md)
+- **Menu Bar Extra (`NSStatusItem`)**: Runs silently in the macOS menu bar with zero dock clutter.
+- **Acoustic Tap Detector (`TapDetector`)**: High-frequency transient onset detector ($\text{Peak}/\text{RMS} \ge 5.5$) distinguishing physical surface taps from voice speech.
+- **Audio Feedback (`NSSound`)**: Plays subtle system click feedback when a desk tap is triggered.
+- **Preferences UI**: SwiftUI settings dashboard for customizing action mappings, sensitivity thresholds, and sound feedback.
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- **macOS 14.0+** (macOS 15 Sequoia recommended)
+- **Apple Silicon Mac** (M1/M2/M3/M4)
+
+### 1. Build Executable
+
+```bash
+./scripts/build.sh
+```
+
+### 2. Run Guardrail Validation
+
+```bash
+./scripts/check-guardrails.sh
+```
+
+### 3. Launch TapSphere
+
+```bash
+./bin/TapSphere
+```
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
